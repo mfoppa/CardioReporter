@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de TAVI Avançada & Planejamento Anatômico e Acessos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 950px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            color: #0056b3;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .row-calc {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        .row-calc h3 {
+            margin-top: 0;
+            font-size: 15px;
+            color: #495057;
+            margin-bottom: 10px;
+        }
+        .inputs-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
+        .input-field {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            font-size: 11px;
+            font-weight: bold;
+            color: #6c757d;
+            margin-bottom: 4px;
+        }
+        input, select {
+            padding: 7px 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            width: 105px;
+            font-size: 13px;
+        }
+        input:read-only {
+            background-color: #e9ecef;
+            color: #495057;
+            border-color: #ced4da;
+        }
+        .unit {
+            font-size: 11px;
+            color: #6c757d;
+            margin-left: 2px;
+        }
+        .field-container {
+            display: flex;
+            align-items: center;
+        }
+        .valves-section {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 2px solid #dee2e6;
+        }
+        .valves-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        .valve-card {
+            background: #eef2f7;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            padding: 12px;
+        }
+        .valve-card h4 {
+            margin: 0 0 8px 0;
+            color: #004085;
+            font-size: 14px;
+            border-bottom: 1px solid #cbd3da;
+            padding-bottom: 4px;
+        }
+        .valve-rec {
+            font-size: 13px;
+            font-weight: bold;
+            color: #155724;
+            background: #d4edda;
+            padding: 6px;
+            border-radius: 4px;
+            text-align: center;
+            margin-top: 6px;
+        }
+        .valve-subinfo {
+            font-size: 11px;
+            color: #495057;
+            margin-top: 4px;
+            line-height: 1.3;
+        }
+        .anat-section {
+            background: #fff8e1;
+            border: 1px solid #ffe0b2;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        .anat-section h3 {
+            color: #b78103;
+            margin-top: 0;
+            font-size: 15px;
+            margin-bottom: 10px;
+        }
+        .alert-box {
+            font-size: 12px;
+            margin-top: 6px;
+            padding: 5px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .alert-safe { background: #d4edda; color: #155724; }
+        .alert-warn { background: #fff3cd; color: #856404; }
+        .alert-danger { background: #f8d7da; color: #721c24; }
+        .references-footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #ced4da;
+            font-size: 11px;
+            color: #6c757d;
+            line-height: 1.4;
+        }
+        .references-footer h4 {
+            margin: 0 0 6px 0;
+            color: #495057;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Calculadora TAVI Avançada & Planejamento Anatômico e Acessos</h2>
+
+    <!-- Linha 1: Diâmetros -->
+    <div class="row-calc">
+        <h3>1. Geometria do Anel (Diâmetros)</h3>
+        <div class="inputs-group">
+            <div class="input-field">
+                <label>Diâmetro 1</label>
+                <div class="field-container">
+                    <input type="number" id="d1" step="0.1" placeholder="Ex: 23.0" oninput="processarCalculos()">
+                    <span class="unit">mm</span>
+                </div>
+            </div>
+            <div class="input-field">
+                <label>Diâmetro 2</label>
+                <div class="field-container">
+                    <input type="number" id="d2" step="0.1" placeholder="Ex: 19.0" oninput="processarCalculos()">
+                    <span class="unit">mm</span>
+                </div>
+            </div>
+            <div class="input-field">
+                <label>Diâmetro Médio</label>
+                <div class="field-container">
+                    <input type="text" id="res_dm" readonly>
+                    <span class="unit">mm</span>
+                </div>
+            </div>
+            <div class="input-field">
+                <label>Área</label>
+                <div class="field-container">
+                    <input type="text" id="res_area" readonly>
+                    <span class="unit">mm²</span>
+                </div>
+            </div>
+            <div class="input-field">
+                <label>Perímetro</label>
+                <div class="field-container">
+                    <input type="text" id="res_per" readonly>
+                    <span class="unit">mm</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Linha 2: Perímetro Direto -->
+    <div class="row-calc">
+        <h3>2. Geometria do Anel (Perímetro Direto)</h3>
+        <div class="inputs-group">
+            <div class="input-field">
+                <label>Perímetro</label>
+                <div class="field-container">
+                    <input type="number" id="per_input" step="0.1" placeholder="Ex: 66.0" oninput="processarPorPerimetro()">
+                    <span class="unit">mm</span>
+                </div>
+            </div>
+            <div class="input-field">
+                <label>Diâmetro Médio</label>
+                <div class="field-container">
+                    <input type="text" id="res_dm_p" readonly>
+                    <span class="unit">mm</span>
+                </div>
+            </div>
+            <div class="input-field">
+                <label>Área</label>
+                <div class="field-container">
+                    <input type="text" id="res_area_p" readonly>
+                    <span class="unit">mm²</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Linha 3: Área Direta -->
+    <div class="row-calc">
+        <h3>3. Geometria do Anel (Área Direta)</h3>
+        <div class="inputs-group">
+            <div class="input-field">
+                <label>Área</label>
+                <div class="field-container">
+                    <input type="number" id="area_input" step="0.1" placeholder="Ex: 345.0" oninput="processarPorArea()">
+                    <span class="unit">mm²</span>
+                </div>
+            </div>
+            <div class="input-field">
+                <label>Diâmetro Médio</label>
+                <div class="field-container">
+                    <input type="text" id="res_dm_a" readonly>
+                    <span class="unit">mm</span>
+                </div>
+            </div>
+            <div class="input-field">
+                <label>Perímetro</label>
+                <div class="field-container">
+                    <input type="text" id="res_per_a" readonly>
+                    <span class="unit">mm</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Seção de Alturas Anatômicas (Coronárias e STJ) -->
+    <div class="anat-section">
+        <h3>4. Alturas Anatômicas (Coronárias e Junção Sinotubular)</h3>
+        <div class="inputs-group">
+            <div class="input-field">
+                <label>Altura Coronária Esq. (TCE)</label>
+                <div class="field-container">
+                    <input type="number" id="alt_tce" step="0.5" placeholder="Ex: 12.0" oninput="avaliarCoronarias()">
+                    <span class="unit">mm</span>
+                </div>
+            </div>
+            <div class="input-field">
+                <label>Altura Coronária Dir. (CDD)</label>
+                <div class="field-container">
+                    <input type="number" id="alt_cdd" step="0.5" placeholder="Ex: 14.0" oninput="avaliarCoronarias()">
+                    <span class="unit">mm</span>
+                </div>
+            </div>
+            <div class="input-field">
+                <label>Altura Junção Sinotubular</label>
+                <div class="field-container">
+                    <input type="number" id="alt_stj" step="0.5" placeholder="Ex: 18.0" oninput="avaliarCoronarias()">
+                    <span class="unit">mm</span>
+                </div>
+            </div>
+        </div>
+        <div id="status_coronarias" class="alert-box alert-safe" style="margin-top: 10px; display: none;"></div>
+    </div>
+
+    <!-- Seção de Próteses e Expansão -->
+    <div class="valves-section">
+        <h2>Seleção de Próteses, Expansão & Perfil de Introdução (Acessos)</h2>
+        <div class="valves-grid">
+            
+            <!-- SAPIEN -->
+            <div class="valve-card">
+                <h4>Edwards SAPIEN 3 / Ultra / Resilia</h4>
+                <div id="specs_sapien" class="valve-subinfo">Aguardando dados...</div>
+                <div class="valve-rec" id="rec_sapien">-</div>
+                <div id="exp_sapien" class="valve-subinfo" style="margin-top: 6px;"></div>
+                <div id="access_sapien" class="valve-subinfo" style="margin-top: 6px; font-weight: bold; color: #004085;"></div>
+            </div>
+
+            <!-- EVOLUT -->
+            <div class="valve-card">
+                <h4>Medtronic Evolut (FX / PRO+)</h4>
+                <div id="specs_evolut" class="valve-subinfo">Aguardando dados...</div>
+                <div class="valve-rec" id="rec_evolut">-</div>
+                <div id="exp_evolut" class="valve-subinfo" style="margin-top: 6px;"></div>
+                <div id="access_evolut" class="valve-subinfo" style="margin-top: 6px; font-weight: bold; color: #004085;"></div>
+            </div>
+
+            <!-- MYVAL -->
+            <div class="valve-card">
+                <h4>Meril Myval / Octave</h4>
+                <div id="specs_myval" class="valve-subinfo">Aguardando dados...</div>
+                <div class="valve-rec" id="rec_myval">-</div>
+                <div id="exp_myval" class="valve-subinfo" style="margin-top: 6px;"></div>
+                <div id="access_myval" class="valve-subinfo" style="margin-top: 6px; font-weight: bold; color: #004085;"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Rodapé com Referências Científicas e Técnicas -->
+    <div class="references-footer">
+        <h4>Referências e Diretrizes Técnicas:</h4>
+        <ul>
+            <li><strong>Edwards SAPIEN 3 / Ultra / Resilia:</strong> Instruções de Uso (IFU) e Diretrizes de Dimensionamento baseadas em tomografia computadorizada (CT sizing guidance) para área/perímetro e perfis de introdução com bainhas compatíveis (ESX/S3X).</li>
+            <li><strong>Medtronic Evolut (FX / PRO+):</strong> Recomendações clínicas do fabricante e algoritmos de dimensionamento baseados em perímetro do anel aórtico, critérios de sobreposição (*overlap*) e perfis do sistema de entrega In-Line Sheath.</li>
+            <li><strong>Meril Myval / Octave:</strong> Tabelas oficiais de dimensionamento do sistema transcateter com tamanhos tradicionais e intermediários (stepping de 1.5mm) e calibres de introdutores vasculares (Navigator).</li>
+            <li><strong>Parâmetros Anatômicos:</strong> Consensos da Sociedade Brasileira de Hemodinâmica e Cardiologia Intervencionista (SBHCI), PCR London Valves e diretrizes internacionais de imagem multimodais para TAVI (ESC/EACTS).</li>
+        </ul>
+    </div>
+
+</div>
+
+<script>
+    let globalArea = NaN;
+    let globalPerimeter = NaN;
+    let globalDm = NaN;
+
+    function processarCalculos() {
+        const d1 = parseFloat(document.getElementById('d1').value);
+        const d2 = parseFloat(document.getElementById('d2').value);
+
+        if (isNaN(d1) || isNaN(d2)) {
+            limparCampos('d');
+            return;
+        }
+
+        globalDm = (d1 + d2) / 2;
+        globalArea = (Math.PI / 4) * d1 * d2;
+        
+        const a = d1 / 2;
+        const b = d2 / 2;
+        globalPerimeter = Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)));
+
+        document.getElementById('res_dm').value = globalDm.toFixed(1);
+        document.getElementById('res_area').value = globalArea.toFixed(1);
+        document.getElementById('res_per').value = globalPerimeter.toFixed(1);
+
+        atualizarTudo();
+    }
+
+    function processarPorPerimetro() {
+        const p = parseFloat(document.getElementById('per_input').value);
+        if (isNaN(p)) {
+            limparCampos('p');
+            return;
+        }
+
+        globalPerimeter = p;
+        globalDm = p / Math.PI;
+        globalArea = Math.PI * Math.pow(globalDm / 2, 2);
+
+        document.getElementById('res_dm_p').value = globalDm.toFixed(1);
+        document.getElementById('res_area_p').value = globalArea.toFixed(1);
+
+        atualizarTudo();
+    }
+
+    function processarPorArea() {
+        const area = parseFloat(document.getElementById('area_input').value);
+        if (isNaN(area)) {
+            limparCampos('a');
+            return;
+        }
+
+        globalArea = area;
+        globalDm = 2 * Math.sqrt(area / Math.PI);
+        globalPerimeter = Math.PI * globalDm;
+
+        document.getElementById('res_dm_a').value = globalDm.toFixed(1);
+        document.getElementById('res_per_a').value = globalPerimeter.toFixed(1);
+
+        atualizarTudo();
+    }
+
+    function limparCampos(origem) {
+        if(origem === 'd') {
+            document.getElementById('res_dm').value = '';
+            document.getElementById('res_area').value = '';
+            document.getElementById('res_per').value = '';
+        }
+    }
+
+    function atualizarTudo() {
+        if (isNaN(globalArea) || isNaN(globalPerimeter)) return;
+        atualizarSazoesProteses();
+        avaliarCoronarias();
+    }
+
+    function avaliarCoronarias() {
+        const tce = parseFloat(document.getElementById('alt_tce').value);
+        const cdd = parseFloat(document.getElementById('alt_cdd').value);
+        const stj = parseFloat(document.getElementById('alt_stj').value);
+        const statusBox = document.getElementById('status_coronarias');
+
+        if (isNaN(tce) && isNaN(cdd) && isNaN(stj)) {
+            statusBox.style.display = 'none';
+            return;
+        }
+
+        let avisos = [];
+        let classeAlerta = 'alert-safe';
+
+        if (!isNaN(tce) && tce < 10) {
+            avisos.push("⚠️ Altura de TCE baixa (< 10 mm) - Alto risco de oclusão coronária esquerda.");
+            classeAlerta = 'alert-danger';
+        } else if (!isNaN(tce) && tce < 12) {
+            avisos.push("⚠️ Altura de TCE limítrofe (10-12 mm).");
+            if (classeAlerta !== 'alert-danger') classeAlerta = 'alert-warn';
+        }
+
+        if (!isNaN(cdd) && cdd < 10) {
+            avisos.push("⚠️ Altura de CDD baixa (< 10 mm) - Alto risco de oclusão coronária direita.");
+            classeAlerta = 'alert-danger';
+        } else if (!isNaN(cdd) && cdd < 12) {
+            avisos.push("⚠️ Altura de CDD limítrofe (10-12 mm).");
+            if (classeAlerta !== 'alert-danger') classeAlerta = 'alert-warn';
+        }
+
+        if (!isNaN(stj) && stj < 12) {
+            avisos.push("⚠️ Altura da Junção Sinotubular baixa (< 12 mm) - Risco de acomodação inadequada da prótese ou impedimento de expansão/técnica de chimney.");
+            if (classeAlerta !== 'alert-danger') classeAlerta = 'alert-warn';
+        }
+
+        if (avisos.length === 0) {
+            statusBox.innerHTML = "✅ Alturas coronarianas e altura da junção sinotubular dentro de faixas anatômicas seguras.";
+            statusBox.className = "alert-box alert-safe";
+        } else {
+            statusBox.innerHTML = avisos.join("<br>");
+            statusBox.className = "alert-box " + classeAlerta;
+        }
+        statusBox.style.display = 'block';
+    }
+
+    function atualizarSazoesProteses() {
+        // --- SAPIEN ---
+        let recSapien = "Indeterminado";
+        let expSapienText = "";
+        let accessSapienText = "";
+        let areaSapienNominal = 0;
+
+        if (globalArea < 314) {
+            recSapien = "Edwards SAPIEN 20 mm";
+            areaSapienNominal = Math.PI * Math.pow(10, 2);
+            accessSapienText = "Introduce Sheath (ESX): Esfera 14 Fr (Mín. acesso 5.0 - 5.5 mm)";
+        } else if (globalArea >= 314 && globalArea < 430) {
+            recSapien = "Edwards SAPIEN 23 mm";
+            areaSapienNominal = Math.PI * Math.pow(11.5, 2);
+            accessSapienText = "Introduce Sheath (ESX): Esfera 14 Fr / S3X 14 Fr (Mín. acesso 5.0 - 5.5 mm)";
+        } else if (globalArea >= 430 && globalArea < 580) {
+            recSapien = "Edwards SAPIEN 26 mm";
+            areaSapienNominal = Math.PI * Math.pow(13, 2);
+            accessSapienText = "Introduce Sheath (ESX): Esfera 14 Fr / S3X 14 Fr (Mín. acesso 5.5 mm)";
+        } else {
+            recSapien = "Edwards SAPIEN 29 mm";
+            areaSapienNominal = Math.PI * Math.pow(14.5, 2);
+            accessSapienText = "Introduce Sheath (ESX): Esfera 16 Fr (Mín. acesso 6.0 mm)";
+        }
+
+        let diffSapienPct = ((globalArea - areaSapienNominal) / areaSapienNominal) * 100;
+        if (diffSapienPct > 5) {
+            expSapienText = `🔹 <strong>Underexpansion esperada:</strong> Anel maior que a área nominal (~${diffSapienPct.toFixed(1)}% acima).`;
+        } else if (diffSapienPct < -8) {
+            expSapienText = `🔹 <strong>Overexpansion esperada:</strong> Anel menor que o nominal (~${Math.abs(diffSapienPct).toFixed(1)}% abaixo).`;
+        } else {
+            expSapienText = `🔹 <strong>Expansão Balanceada:</strong> Área compatível (variação de ${diffSapienPct.toFixed(1)}%).`;
+        }
+
+        document.getElementById('specs_sapien').innerHTML = `Área ref: ${globalArea.toFixed(1)} mm²<br>Perímetro ref: ${globalPerimeter.toFixed(1)} mm`;
+        document.getElementById('rec_sapien').innerText = recSapien;
+        document.getElementById('exp_sapien').innerHTML = expSapienText;
+        document.getElementById('access_sapien').innerHTML = `Acesso vascular: 🔌 ${accessSapienText}`;
+
+        // --- EVOLUT ---
+        let recEvolut = "Indeterminado";
+        let expEvolutText = "";
+        let accessEvolutText = "";
+        let perimEvolutNominal = 0;
+
+        if (globalPerimeter < 62.8) {
+            recEvolut = "Evolut 23 mm";
+            perimEvolutNominal = Math.PI * 23;
+            accessEvolutText = "In-Line Sheath: 5.0 Fr equivalente (Cateter 14 Fr / Acesso mín. 5.0 mm)";
+        } else if (globalPerimeter >= 62.8 && globalPerimeter < 72.3) {
+            recEvolut = "Evolut 26 mm";
+            perimEvolutNominal = Math.PI * 26;
+            accessEvolutText = "In-Line Sheath: 5.0 Fr equivalente (Cateter 14 Fr / Acesso mín. 5.0 mm)";
+        } else if (globalPerimeter >= 72.3 && globalPerimeter <= 90.0) {
+            recEvolut = "Evolut 29 mm";
+            perimEvolutNominal = Math.PI * 29;
+            accessEvolutText = "In-Line Sheath: 5.0 Fr equivalente (Cateter 14 Fr / Acesso mín. 5.0 mm)";
+        } else if (globalPerimeter > 90.0 && globalPerimeter < 95.0) {
+            recEvolut = "Evolut 29 mm (com Overexpansion)";
+            perimEvolutNominal = Math.PI * 29;
+            accessEvolutText = "In-Line Sheath: 5.0 Fr equivalente (Cateter 14 Fr / Acesso mín. 5.0 mm)";
+        } else {
+            recEvolut = "Evolut 34 mm";
+            perimEvolutNominal = Math.PI * 34;
+            accessEvolutText = "In-Line Sheath: 6.0 Fr equivalente (Cateter 16 Fr / Acesso mín. 6.0 mm)";
+        }
+
+        let diffEvolutPct = ((globalPerimeter - perimEvolutNominal) / perimEvolutNominal) * 100;
+        if (diffEvolutPct > 4) {
+            expEvolutText = `🔹 <strong>Underexpansion teórica:</strong> Perímetro excede a referência nominal (~${diffEvolutPct.toFixed(1)}%).`;
+        } else if (diffEvolutPct < -6) {
+            expEvolutText = `🔹 <strong>Overexpansion teórica:</strong> Perímetro menor que o nominal (~${Math.abs(diffEvolutPct).toFixed(1)}%).`;
+        } else {
+            expEvolutText = `🔹 <strong>Conformação Ideal:</strong> Perímetro na faixa ideal (variação de ${diffEvolutPct.toFixed(1)}%).`;
+        }
+
+        document.getElementById('specs_evolut').innerHTML = `Perímetro ref: ${globalPerimeter.toFixed(1)} mm<br>Diâmetro Médio: ${globalDm.toFixed(1)} mm`;
+        document.getElementById('rec_evolut').innerText = recEvolut;
+        document.getElementById('exp_evolut').innerHTML = expEvolutText;
+        document.getElementById('access_evolut').innerHTML = `Acesso vascular: 🔌 ${accessEvolutText}`;
+
+        // --- MYVAL ---
+        let recMyval = "Indeterminado";
+        let accessMyvalText = "";
+
+        if (globalArea < 314) {
+            recMyval = "Myval 20 mm";
+            accessMyvalText = "Navigator/Introducer: 5 Fr / 6 Fr (Compatível com 5.0 mm)";
+        } else if (globalArea >= 314 && globalArea < 360) {
+            recMyval = "Myval 21.5 mm (Intermediário)";
+            accessMyvalText = "Navigator/Introducer: 6 Fr (Compatível com 5.5 mm)";
+        } else if (globalArea >= 360 && globalArea < 410) {
+            recMyval = "Myval 23 mm";
+            accessMyvalText = "Navigator/Introducer: 6 Fr (Compatível com 5.5 mm)";
+        } else if (globalArea >= 410 && globalArea < 460) {
+            recMyval = "Myval 24.5 mm (Intermediário)";
+            accessMyvalText = "Navigator/Introducer: 6 Fr / 7 Fr (Compatível com 5.5 - 6.0 mm)";
+        } else if (globalArea >= 460 && globalArea < 510) {
+            recMyval = "Myval 26 mm";
+            accessMyvalText = "Navigator/Introducer: 7 Fr (Compatível com 6.0 mm)";
+        } else if (globalArea >= 510 && globalArea < 570) {
+            recMyval = "Myval 27.5 mm (Intermediário)";
+            accessMyvalText = "Navigator/Introducer: 7 Fr (Compatível com 6.0 mm)";
+        } else if (globalArea >= 570 && globalArea < 700) {
+            recMyval = "Myval 29 mm";
+            accessMyvalText = "Navigator/Introducer: 7 Fr / 8 Fr (Compatível com 6.5 mm)";
+        } else {
+            recMyval = "Myval 30.5 / 32 mm (XL)";
+            accessMyvalText = "Navigator/Introducer: 8 Fr (Compatível com 7.0 mm)";
+        }
+
+        let expMyvalText = `🔹 <strong>Sistema Intermediário:</strong> Reduz escolhas limítrofes.`;
+
+        document.getElementById('specs_myval').innerHTML = `Área ref: ${globalArea.toFixed(1)} mm²<br>Passos de 1.5mm`;
+        document.getElementById('rec_myval').innerText = recMyval;
+        document.getElementById('exp_myval').innerHTML = expMyvalText;
+        document.getElementById('access_myval').innerHTML = `Acesso vascular: 🔌 ${accessMyvalText}`;
+    }
+</script>
+
+</body>
+</html>
