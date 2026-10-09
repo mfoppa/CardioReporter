@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora de CAC — Medição por DICOM (protótipo v1)</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c232d; --line:#2b3440;
+    --txt:#e6edf3; --muted:#9aa7b4; --accent:#4da3ff; --accent2:#2b6cb0;
+    --pink:#ff3cf0; --ok:#3fb950; --warn:#e3b341; --danger:#f85149;
+    --tce:#ffd400; --da:#ff5a5a; --cx:#3cdc5a; --cd:#4da3ff; --ga:#c98bff; --gb:#ff9b3d;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--txt);font:14px/1.45 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  header{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+  header h1{font-size:15px;margin:0;font-weight:650}
+  header .tag{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 8px}
+  .aviso{margin-left:auto;font-size:11px;color:var(--warn)}
+  .wrap{display:grid;grid-template-columns:260px 1fr 320px;gap:0;height:calc(100vh - 49px)}
+  .side{background:var(--panel);border-right:1px solid var(--line);overflow:auto;padding:12px}
+  .right{background:var(--panel);border-left:1px solid var(--line);border-right:none;overflow:auto}
+  .center{position:relative;background:#05070a;display:flex;flex-direction:column;min-width:0}
+  .stage{flex:1;position:relative;overflow:hidden}
+  canvas{position:absolute;left:0;top:0;image-rendering:pixelated;cursor:crosshair}
+  .barra{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 10px;background:var(--panel2);border-top:1px solid var(--line);font-size:12px}
+  .barra .sp{flex:1}
+  button,select{font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:6px 9px;cursor:pointer}
+  button:hover{border-color:var(--accent2)}
+  button.on{background:var(--accent2);border-color:var(--accent)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .grp{display:block;width:100%;text-align:left;margin:4px 0;border-left:5px solid var(--line);display:flex;align-items:center;gap:8px}
+  .grp .dot{width:12px;height:12px;border-radius:3px;flex:none}
+  .grp .nm{flex:1}
+  .grp .sc{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
+  h3{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:16px 0 6px}
+  .hint{font-size:11px;color:var(--muted);margin:6px 0}
+  label.row{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px}
+  input[type=number],input[type=text]{width:90px;background:#0b0f14;border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:4px 6px}
+  .drop{border:2px dashed var(--line);border-radius:12px;padding:26px 14px;text-align:center;color:var(--muted);margin-bottom:10px}
+  .drop.drag{border-color:var(--accent);color:var(--txt);background:#10151c}
+  table.res{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  table.res th,table.res td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;font-size:13px}
+  table.res th:first-child,table.res td:first-child{text-align:left}
+  table.res thead th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase}
+  .total td{font-weight:700;border-top:2px solid var(--line)}
+  .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-weight:700}
+  .sep{height:1px;background:var(--line);margin:14px 0}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted);padding:6px 10px;background:var(--panel2);border-top:1px solid var(--line)}
+  .legend span{display:inline-flex;align-items:center;gap:4px}
+  .legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+  .wl{display:flex;gap:6px;align-items:center}
+  .small{font-size:11px;color:var(--muted)}
+  .kbd{font:11px ui-monospace,Menlo,Consolas,monospace;background:#0b0f14;border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+  a{color:var(--accent)}
+  #status{padding:6px 10px;font-size:12px;color:var(--muted);background:var(--panel2);border-top:1px solid var(--line);min-height:28px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Calculadora de CAC <span class="small">— medição direto do DICOM</span></h1>
+  <span class="tag">protótipo v1 · dados sintéticos</span>
+  <span class="aviso">⚠ Não é dispositivo médico certificado — confira os resultados.</span>
+</header>
+
+<div class="wrap">
+  <!-- ESQUERDA: carregar + grupos + ferramentas -->
+  <div class="side">
+    <div id="drop" class="drop">
+      <div style="font-size:26px">🫀</div>
+      <div><b>Abrir série DICOM</b></div>
+      <div class="small">Selecione a pasta do exame (ou vários .dcm)</div>
+      <div style="margin-top:8px">
+        <input id="file" type="file" webkitdirectory directory multiple hidden>
+        <input id="file2" type="file" multiple accept=".dcm,application/dicom" hidden>
+        <button onclick="document.getElementById('file').click()">Abrir pasta…</button>
+        <button onclick="document.getElementById('file2').click()">Abrir arquivos…</button>
+      </div>
+    </div>
+    <div id="serieinfo" class="small"></div>
+
+    <h3>Artéria / grupo ativo</h3>
+    <div class="hint">Teclas <span class="kbd">1</span>–<span class="kbd">4</span> coronárias · <span class="kbd">5</span>/<span class="kbd">6</span> A/B · <span class="kbd">0</span> apagar</div>
+    <div id="grupos"></div>
+
+    <h3>Ferramenta</h3>
+    <div class="wl">
+      <button id="t-click" class="on" onclick="setTool('click')">Clicar</button>
+      <button id="t-lasso" onclick="setTool('lasso')">Circular</button>
+      <label class="row" style="margin-left:4px"><input id="modo3d" type="checkbox"> 3D</label>
+    </div>
+    <div class="hint">Clicar: marca a lesão sob o cursor. 3D: marca a lesão inteira nos cortes vizinhos. <span class="kbd">Ctrl</span>+<span class="kbd">Z</span> desfaz.</div>
+    <button onclick="undo()" style="width:100%;margin-top:4px">↶ Desfazer (Ctrl+Z)</button>
+    <button onclick="limparGrupoAtivo()" style="width:100%;margin-top:6px">Apagar marcas do grupo ativo</button>
+    <button onclick="limparTudo()" style="width:100%;margin-top:6px">Apagar todas as marcas</button>
+  </div>
+
+  <!-- CENTRO: viewer -->
+  <div class="center">
+    <div class="stage" id="stage">
+      <canvas id="cv-img"></canvas>
+      <canvas id="cv-ov"></canvas>
+      <canvas id="cv-ui"></canvas>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--pink)"></i>≥130 HU (candidato)</span>
+      <span><i style="background:var(--tce)"></i>TCE</span>
+      <span><i style="background:var(--da)"></i>DA</span>
+      <span><i style="background:var(--cx)"></i>CX</span>
+      <span><i style="background:var(--cd)"></i>CD</span>
+      <span><i style="background:var(--ga)"></i>A</span>
+      <span><i style="background:var(--gb)"></i>B</span>
+    </div>
+    <div class="barra">
+      <button onclick="sliceBy(-1)">◀ corte</button>
+      <span id="slicelbl" class="small">—</span>
+      <button onclick="sliceBy(1)">corte ▶</button>
+      <span class="sp"></span>
+      <div class="wl">
+        <span class="small">Janela</span>
+        <select id="preset" onchange="applyPreset(this.value)">
+          <option value="40,400">Mediastino (40/400)</option>
+          <option value="200,1000">Calcificação (200/1000)</option>
+          <option value="300,1500">Osso (300/1500)</option>
+          <option value="-600,1500">Pulmão (-600/1500)</option>
+        </select>
+        <span class="small">N</span><input id="wc" type="number" value="40" style="width:64px" onchange="redraw()">
+        <span class="small">L</span><input id="ww" type="number" value="400" style="width:64px" onchange="redraw()">
+      </div>
+      <span class="sp"></span>
+      <button onclick="zoomBy(1.25)">＋</button><button onclick="zoomBy(0.8)">－</button>
+      <button onclick="fitView()">Ajustar</button>
+    </div>
+    <div id="status">Carregue uma série DICOM para começar. Botão direito arrastando = janela; botão do meio = mover; roda = cortes; Ctrl+roda = zoom.</div>
+  </div>
+
+  <!-- DIREITA: resultados -->
+  <div class="right">
+    <div style="padding:12px">
+      <h3 style="margin-top:4px">Escore de cálcio (Agatston)</h3>
+      <table class="res" id="tbl">
+        <thead><tr><th>Grupo</th><th>Agatston</th><th>Volume (mm³)</th><th>Lesões</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+
+      <div style="margin-top:14px;text-align:center">
+        <div class="small">CAC total (coronárias)</div>
+        <div style="font-size:30px;font-weight:800;font-variant-numeric:tabular-nums" id="cactotal">0</div>
+        <div id="cacdrs" class="pill" style="background:#223; color:var(--txt)">CAC-DRS 0</div>
+      </div>
+      <div class="hint" style="text-align:center">Grupos A e B são independentes e <b>não entram</b> na soma do CAC.</div>
+
+      <div class="sep"></div>
+      <label class="row"><span style="width:120px">Massa (mg)</span><input id="massa" type="text" placeholder="manual"> <span class="small">digitada</span></label>
+      <div class="hint">Massa é manual neste protótipo (calibração definida depois).</div>
+
+      <div class="sep"></div>
+      <h3>Dados do paciente (DICOM)</h3>
+      <div id="paciente" class="small">—</div>
+
+      <div class="sep"></div>
+      <button style="width:100%" onclick="copiarResumo()">Copiar resumo</button>
+      <textarea id="resumo" style="width:100%;height:120px;margin-top:8px;background:#0b0f14;color:var(--txt);border:1px solid var(--line);border-radius:6px;font:12px ui-monospace,Menlo,Consolas,monospace" readonly></textarea>
+      <div class="hint">A ligação automática com o laudo CAC fica para um passo posterior (este protótipo não encosta no laudo em produção).</div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ===================== Constantes do algoritmo (idênticas ao core.pyc) ===================== */
+const LIMIAR_HU = 130;
+const AREA_MINIMA_MM2 = 1.0;
+const GRUPOS = [
+  {id:"TCE", nome:"Tronco da coronária esquerda (TCE)", cor:"--tce", coron:true},
+  {id:"DA",  nome:"Artéria descendente anterior (DA)",  cor:"--da",  coron:true},
+  {id:"CX",  nome:"Artéria circunflexa (CX)",           cor:"--cx",  coron:true},
+  {id:"CD",  nome:"Artéria coronária direita (CD)",      cor:"--cd",  coron:true},
+  {id:"A",   nome:"Grupo A (outras calcificações)",      cor:"--ga",  coron:false},
+  {id:"B",   nome:"Grupo B (outras calcificações)",      cor:"--gb",  coron:false},
+];
+const GID = {}; GRUPOS.forEach((g,i)=>GID[g.id]=i+1);           // 1..6 ; 0 = nenhum
+const corRGB = {}; // preenchido após render
+
+function pesoDensidade(pico){
+  if(pico>=400) return 4;
+  if(pico>=300) return 3;
+  if(pico>=200) return 2;
+  if(pico>=LIMIAR_HU) return 1;
+  return 0;
+}
+function arredondarEscore(v){ return v>0 ? Math.max(1, Math.round(v)) : 0; }
+function categoriaCacDrs(a){ if(a<=0)return 0; if(a<100)return 1; if(a<300)return 2; return 3; }
+
+/* ===================== Estado ===================== */
+const S = {
+  nz:0, ny:0, nx:0, pix:1, thick:3, inc:3, areaPixel:1,
+  hu:null,            // Int16Array [nz*ny*nx] em HU
+  assign:null,        // Int8Array [nz*ny*nx] 0..6 (grupo marcado)
+  candCache:new Map(), // z -> {labels:Int32Array, nLab:int, areaMm:Float32Array}
+  slice:0, grupoAtivo:1, tool:"click", modo3d:false,
+  zoom:1, panx:0, pany:0,
+  paciente:{},
+  undoStack:[],
+};
+const idx3 = (z,y,x)=> (z*S.ny + y)*S.nx + x;
+
+/* ===================== Parser DICOM (JS puro, sem libs) =====================
+   Suporta Explicit/Implicit VR Little Endian, pixels 8/16 bits não comprimidos. */
+const EXPL_LE="1.2.840.10008.1.2.1", IMPL_LE="1.2.840.10008.1.2";
+const LONG_VR = new Set(["OB","OW","OF","OD","OL","SQ","UT","UN","UR","UC"]);
+
+function parseDicom(buf){
+  const dv = new DataView(buf); const u8 = new Uint8Array(buf);
+  let p = 0;
+  // preâmbulo + "DICM"
+  if(buf.byteLength>132 && u8[128]===0x44&&u8[129]===0x49&&u8[130]===0x43&&u8[131]===0x4D){ p=132; }
+  const tags = {};
+  let ts = EXPL_LE; // transfer syntax do dataset (grupo 0002 é sempre Explicit LE)
+  const str = (off,len)=>{ let s=""; for(let i=0;i<len;i++){const c=u8[off+i]; if(c===0)break; s+=String.fromCharCode(c);} return s.trim(); };
+
+  function readElems(explicit, stop){
+    while(p+8 <= buf.byteLength){
+      if(stop!==undefined && p>=stop) break;
+      const group = dv.getUint16(p,true), elem = dv.getUint16(p+2,true); p+=4;
+      let vr=null, len=0;
+      if(explicit){
+        vr = String.fromCharCode(u8[p],u8[p+1]); p+=2;
+        if(LONG_VR.has(vr)){ p+=2; len = dv.getUint32(p,true); p+=4; }
+        else { len = dv.getUint16(p,true); p+=2; }
+      } else {
+        len = dv.getUint32(p,true); p+=4;
+      }
+      const tag = ((group<<16)|elem)>>>0;
+      if(len===0xFFFFFFFF){ // comprimento indefinido (SQ) — pula de forma simples
+        // procura delimitador de sequência FFFE,E0DD
+        // para protótipo: aborta leitura de SQ aninhada
+        len = 0;
+      }
+      const dataOff = p;
+      // guarda só o que interessa
+      tags[tag] = {vr, off:dataOff, len};
+      if(tag===0x7FE00010){ // PixelData — guarda e encerra
+        tags[tag].off=dataOff; tags[tag].len=len; p=dataOff+len; break;
+      }
+      p = dataOff + len;
+      if(group===0x0002 && elem===0x0010){ ts = str(dataOff,len) || EXPL_LE; }
+    }
+  }
+  // 1) file meta (grupo 0002) sempre Explicit LE. Lê até sair do grupo 0002.
+  // Detecta se há meta: se próximo tag é 0002.
+  const startExplicit = (dv.getUint16(p,true)===0x0002);
+  if(startExplicit){
+    // lê meta group explicitamente, parando quando grupo != 0002
+    while(p+8<=buf.byteLength && dv.getUint16(p,true)===0x0002){
+      const g=dv.getUint16(p,true), e=dv.getUint16(p+2,true); p+=4;
+      const vr=String.fromCharCode(u8[p],u8[p+1]); p+=2;
+      let len; if(LONG_VR.has(vr)){p+=2;len=dv.getUint32(p,true);p+=4;} else {len=dv.getUint16(p,true);p+=2;}
+      const off=p;
+      if(g===0x0002&&e===0x0010) ts = str(off,len)||EXPL_LE;
+      p=off+len;
+    }
+  }
+  const explicit = (ts!==IMPL_LE);
+  readElems(explicit);
+
+  const getStr = t => tags[t]? str(tags[t].off, tags[t].len) : "";
+  const getNums = t => getStr(t).split("\\").map(parseFloat).filter(x=>!isNaN(x));
+  const getNum = (t,d)=>{ const a=getNums(t); return a.length?a[0]:d; };
+
+  const rows = (()=>{const t=tags[0x00280010]; return t?dv.getUint16(t.off,true):0;})();
+  const cols = (()=>{const t=tags[0x00280011]; return t?dv.getUint16(t.off,true):0;})();
+  const ps = getNums(0x00280030); // PixelSpacing [row,col]
+  const thick = getNum(0x00180050, 0);
+  const ipp = getNums(0x00200032); // ImagePositionPatient
+  const iop = getNums(0x00200037); // ImageOrientationPatient
+  const slope = getNum(0x00281053, 1);
+  const inter = getNum(0x00281052, 0);
+  const bits = (()=>{const t=tags[0x00280100]; return t?dv.getUint16(t.off,true):16;})();
+  const pixRep = (()=>{const t=tags[0x00280103]; return t?dv.getUint16(t.off,true):0;})();
+  const pd = tags[0x7FE00010];
+  if(!pd || !rows || !cols) throw new Error("Arquivo sem PixelData/dimensões (ou transfer syntax comprimida não suportada).");
+
+  // monta HU (Int16Array)
+  const n = rows*cols;
+  const hu = new Int16Array(n);
+  if(bits<=8){
+    for(let i=0;i<n;i++) hu[i] = (u8[pd.off+i])*slope + inter;
+  } else {
+    if(pixRep===1){ for(let i=0;i<n;i++) hu[i] = dv.getInt16(pd.off+i*2,true)*slope + inter; }
+    else { for(let i=0;i<n;i++) hu[i] = dv.getUint16(pd.off+i*2,true)*slope + inter; }
+  }
+  return {
+    rows, cols, pixelSpacing: ps.length?ps:[1,1], thick,
+    ipp: ipp.length?ipp:[0,0,0], iop: iop.length?iop:[1,0,0,0,1,0],
+    hu,
+    patient:{nome:getStr(0x00100010), id:getStr(0x00100020), sexo:getStr(0x00100040),
+             nasc:getStr(0x00100030), data:getStr(0x00080020), kvp:getNum(0x00180060,0),
+             inst:getStr(0x00080080), desc:getStr(0x0008103E)}
+  };
+}
+
+/* ===================== Carregar série ===================== */
+async function loadFiles(fileList){
+  const files = Array.from(fileList).filter(f=>/\.dcm$/i.test(f.name) || !f.name.includes("."));
+  if(!files.length){ setStatus("Nenhum arquivo .dcm encontrado na seleção."); return; }
+  setStatus("Lendo "+files.length+" arquivos…");
+  const slices=[];
+  for(const f of files){
+    try{
+      const buf = await f.arrayBuffer();
+      const d = parseDicom(buf);
+      slices.push(d);
+    }catch(e){ /* ignora arquivo inválido */ }
+  }
+  if(!slices.length){ setStatus("Falha: nenhum DICOM válido (pode ser série comprimida)."); return; }
+  // ordena projetando IPP na normal do corte (cross dos vetores de orientação)
+  const o = slices[0].iop;
+  const rowv=[o[0],o[1],o[2]], colv=[o[3],o[4],o[5]];
+  const nrm=[rowv[1]*colv[2]-rowv[2]*colv[1], rowv[2]*colv[0]-rowv[0]*colv[2], rowv[0]*colv[1]-rowv[1]*colv[0]];
+  slices.forEach(s=> s._proj = s.ipp[0]*nrm[0]+s.ipp[1]*nrm[1]+s.ipp[2]*nrm[2]);
+  slices.sort((a,b)=>a._proj-b._proj);
+  // incremento = mediana das diferenças (fallback: SliceThickness ou 3.0)
+  const diffs=[]; for(let i=1;i<slices.length;i++) diffs.push(Math.abs(slices[i]._proj-slices[i-1]._proj));
+  diffs.sort((a,b)=>a-b);
+  let inc = diffs.length? diffs[Math.floor(diffs.length/2)] : (slices[0].thick||3);
+  if(!inc || inc<=0) inc = slices[0].thick || 3;
+
+  S.nz=slices.length; S.ny=slices[0].rows; S.nx=slices[0].cols;
+  S.pix = slices[0].pixelSpacing[0] || 1;
+  const pixCol = slices[0].pixelSpacing[1] || S.pix;
+  S.areaPixel = S.pix * pixCol;
+  S.thick = slices[0].thick||3; S.inc = inc;
+  S.hu = new Int16Array(S.nz*S.ny*S.nx);
+  for(let z=0;z<S.nz;z++) S.hu.set(slices[z].hu, z*S.ny*S.nx);
+  S.assign = new Int8Array(S.nz*S.ny*S.nx);
+  S.candCache.clear(); S.undoStack.length=0;
+  S.paciente = slices[0].patient;
+  S.slice = Math.floor(S.nz/2);
+  S.zoom=1; S.panx=0; S.pany=0;
+
+  document.getElementById("serieinfo").innerHTML =
+    `<b>${S.nx}×${S.ny} × ${S.nz} cortes</b><br>pixel ${S.pix.toFixed(3)} mm · incremento ${S.inc.toFixed(2)} mm · ${slices[0].patient.kvp||"?"} kVp`;
+  renderPaciente();
+  fitView();
+  score();
+  setStatus("Série carregada. Escolha a artéria e marque as calcificações.");
+}
+
+/* ===================== Candidatos (≥130 HU) por corte, com CC 2D 8-viz ===================== */
+function candidatos(z){
+  if(S.candCache.has(z)) return S.candCache.get(z);
+  const ny=S.ny,nx=S.nx, base=z*ny*nx, hu=S.hu;
+  const labels=new Int32Array(ny*nx).fill(0);
+  const stack=new Int32Array(ny*nx);
+  let nLab=0; const areasPx=[0];
+  for(let i=0;i<ny*nx;i++){
+    if(hu[base+i]>=LIMIAR_HU && labels[i]===0){
+      nLab++; let cnt=0, sp=0; stack[sp++]=i; labels[i]=nLab;
+      while(sp>0){
+        const q=stack[--sp]; cnt++;
+        const qy=(q/nx)|0, qx=q-qy*nx;
+        for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+          if(dy===0&&dx===0)continue;
+          const ny2=qy+dy, nx2=qx+dx;
+          if(ny2<0||nx2<0||ny2>=ny||nx2>=nx)continue;
+          const nq=ny2*nx+nx2;
+          if(labels[nq]===0 && hu[base+nq]>=LIMIAR_HU){ labels[nq]=nLab; stack[sp++]=nq; }
+        }
+      }
+      areasPx.push(cnt);
+    }
+  }
+  const areaMm=new Float32Array(nLab+1);
+  for(let l=1;l<=nLab;l++) areaMm[l]=areasPx[l]*S.areaPixel;
+  const out={labels,nLab,areaMm};
+  S.candCache.set(z,out);
+  return out;
+}
+
+/* ===================== Marcação ===================== */
+function pushUndo(changes){ // changes: array de [voxelIndex, valorAntigo]
+  if(changes.length){ S.undoStack.push(changes); if(S.undoStack.length>80) S.undoStack.shift(); }
+}
+function undo(){
+  const ch=S.undoStack.pop(); if(!ch)return;
+  for(const [i,v] of ch) S.assign[i]=v;
+  S.candCache && null; redraw(); score(); setStatus("Desfeito.");
+}
+function marcarComponente2D(z, pix, grupo, changes){
+  const c=candidatos(z); const lab=c.labels[pix]; if(lab===0) return;
+  if(c.areaMm[lab] < AREA_MINIMA_MM2) return; // só lesões ≥1 mm²
+  const base=z*S.ny*S.nx;
+  for(let i=0;i<c.labels.length;i++) if(c.labels[i]===lab){
+    const vi=base+i; if(S.assign[vi]!==grupo){changes.push([vi,S.assign[vi]]); S.assign[vi]=grupo;}
+  }
+}
+function marcarComponente3D(z,y,x,grupo,changes){
+  // flood-fill 26-viz sobre HU≥130 a partir do voxel
+  const ny=S.ny,nx=S.nx,nz=S.nz,hu=S.hu;
+  const start=idx3(z,y,x); if(hu[start]<LIMIAR_HU)return;
+  const seen=new Set([start]); const st=[[z,y,x]];
+  const voxels=[];
+  while(st.length){
+    const [cz,cy,cx]=st.pop(); voxels.push(idx3(cz,cy,cx));
+    for(let dz=-1;dz<=1;dz++)for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+      if(dz===0&&dy===0&&dx===0)continue;
+      const z2=cz+dz,y2=cy+dy,x2=cx+dx;
+      if(z2<0||y2<0||x2<0||z2>=nz||y2>=ny||x2>=nx)continue;
+      const vi=idx3(z2,y2,x2);
+      if(!seen.has(vi) && hu[vi]>=LIMIAR_HU){ seen.add(vi); st.push([z2,y2,x2]); }
+    }
+  }
+  for(const vi of voxels) if(S.assign[vi]!==grupo){changes.push([vi,S.assign[vi]]); S.assign[vi]=grupo;}
+}
+function cliqueMarcar(y,x){
+  const grupo = S.grupoAtivo; // 0 = apagar
+  const changes=[];
+  if(grupo===0){ // apaga componente candidato sob cursor (2D) independente do grupo
+    const c=candidatos(S.slice); const lab=c.labels[y*S.nx+x]; const base=S.slice*S.ny*S.nx;
+    if(lab){ for(let i=0;i<c.labels.length;i++) if(c.labels[i]===lab){const vi=base+i; if(S.assign[vi]!==0){changes.push([vi,S.assign[vi]]);S.assign[vi]=0;}} }
+  } else if(S.modo3d){ marcarComponente3D(S.slice,y,x,grupo,changes); }
+  else { marcarComponente2D(S.slice, y*S.nx+x, grupo, changes); }
+  pushUndo(changes); redraw(); score();
+}
+function lassoMarcar(poly){ // poly: [[x,y],...] em coords de imagem
+  if(poly.length<3)return;
+  const grupo=S.grupoAtivo; const changes=[];
+  // bounding box
+  let minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
+  for(const [px,py] of poly){minx=Math.min(minx,px);maxx=Math.max(maxx,px);miny=Math.min(miny,py);maxy=Math.max(maxy,py);}
+  minx=Math.max(0,Math.floor(minx)); maxx=Math.min(S.nx-1,Math.ceil(maxx));
+  miny=Math.max(0,Math.floor(miny)); maxy=Math.min(S.ny-1,Math.ceil(maxy));
+  const c=candidatos(S.slice); const base=S.slice*S.ny*S.nx;
+  for(let y=miny;y<=maxy;y++)for(let x=minx;x<=maxx;x++){
+    if(!pointInPoly(x+0.5,y+0.5,poly))continue;
+    const i=y*S.nx+x; const lab=c.labels[i];
+    if(grupo===0){ const vi=base+i; if(S.assign[vi]!==0){changes.push([vi,S.assign[vi]]);S.assign[vi]=0;} continue; }
+    if(lab===0 || c.areaMm[lab]<AREA_MINIMA_MM2) continue;
+    const vi=base+i; if(S.assign[vi]!==grupo){changes.push([vi,S.assign[vi]]);S.assign[vi]=grupo;}
+  }
+  pushUndo(changes); redraw(); score();
+}
+function pointInPoly(x,y,poly){
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1];
+    if(((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function limparGrupoAtivo(){ const g=S.grupoAtivo; if(!g){limparTudo();return;} const ch=[]; for(let i=0;i<S.assign.length;i++) if(S.assign[i]===g){ch.push([i,g]);S.assign[i]=0;} pushUndo(ch); redraw(); score(); }
+function limparTudo(){ const ch=[]; for(let i=0;i<S.assign.length;i++) if(S.assign[i]){ch.push([i,S.assign[i]]);S.assign[i]=0;} pushUndo(ch); redraw(); score(); }
+
+/* ===================== Cálculo (idêntico ao core.pyc) ===================== */
+function label2D(mask,ny,nx){ // mask: Uint8 ; retorna {labels,n,areaPx:[]}
+  const labels=new Int32Array(ny*nx); const stack=new Int32Array(ny*nx);
+  let n=0; const areaPx=[0];
+  for(let i=0;i<ny*nx;i++){
+    if(mask[i] && labels[i]===0){
+      n++; let cnt=0,sp=0; stack[sp++]=i; labels[i]=n;
+      while(sp>0){ const q=stack[--sp]; cnt++; const qy=(q/nx)|0,qx=q-qy*nx;
+        for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){ if(dy===0&&dx===0)continue;
+          const y2=qy+dy,x2=qx+dx; if(y2<0||x2<0||y2>=ny||x2>=nx)continue; const nq=y2*nx+x2;
+          if(labels[nq]===0 && mask[nq]){labels[nq]=n;stack[sp++]=nq;} } }
+      areaPx.push(cnt);
+    }
+  }
+  return {labels,n,areaPx};
+}
+function contarLesoes3D(grupo){ // 26-viz sobre assign==grupo
+  const nz=S.nz,ny=S.ny,nx=S.nx,a=S.assign; const seen=new Uint8Array(nz*ny*nx); let n=0;
+  const st=[];
+  for(let v=0; v<a.length; v++){
+    if(a[v]===grupo && !seen[v]){
+      n++; seen[v]=1; st.length=0; st.push(v);
+      while(st.length){ const q=st.pop(); const z=(q/(ny*nx))|0, r=q-z*ny*nx, y=(r/nx)|0, x=r-y*nx;
+        for(let dz=-1;dz<=1;dz++)for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){ if(dz===0&&dy===0&&dx===0)continue;
+          const z2=z+dz,y2=y+dy,x2=x+dx; if(z2<0||y2<0||x2<0||z2>=nz||y2>=ny||x2>=nx)continue; const vi=idx3(z2,y2,x2);
+          if(!seen[vi] && a[vi]===grupo){seen[vi]=1;st.push(vi);} } }
+    }
+  }
+  return n;
+}
+function scoreGrupo(grupo){
+  const nz=S.nz,ny=S.ny,nx=S.nx,hu=S.hu,a=S.assign;
+  const fator=S.inc/3.0; let agat=0,vol=0;
+  const mask=new Uint8Array(ny*nx);
+  for(let z=0;z<nz;z++){
+    const base=z*ny*nx; let any=false;
+    for(let i=0;i<ny*nx;i++){ const m=(a[base+i]===grupo)?1:0; mask[i]=m; if(m)any=true; }
+    if(!any)continue;
+    const {labels,n,areaPx}=label2D(mask,ny,nx);
+    // pico HU por componente
+    const picos=new Float64Array(n+1).fill(-1e9);
+    for(let i=0;i<ny*nx;i++){const l=labels[i]; if(l){const h=hu[base+i]; if(h>picos[l])picos[l]=h;}}
+    for(let l=1;l<=n;l++){
+      const area=areaPx[l]*S.areaPixel;
+      if(area<AREA_MINIMA_MM2) continue;
+      agat += area*pesoDensidade(picos[l]);
+      vol  += area*S.inc;
+    }
+  }
+  agat*=fator;
+  return {agatston:arredondarEscore(agat), volume:Math.round(vol*10)/10, lesoes:contarLesoes3D(grupo)};
+}
+function score(){
+  const res={}; let total=0, nArt=0;
+  for(const g of GRUPOS){
+    res[g.id]=scoreGrupo(GID[g.id]);
+    if(g.coron){ total+=res[g.id].agatston; if(res[g.id].agatston>0)nArt++; }
+  }
+  total=arredondarEscore(total);
+  const cat=categoriaCacDrs(total);
+  const drs = cat===0? "CAC-DRS 0" : `CAC-DRS ${"ABC"[cat-1]}/N${nArt}`;
+  S._scores={grupos:res, cac_total:total, n_arterias:nArt, cac_drs:drs};
+  renderResultados();
+  buildGrupos();
+  return S._scores;
+}
+
+/* ===================== Render ===================== */
+const cvImg=document.getElementById("cv-img"), cvOv=document.getElementById("cv-ov"), cvUi=document.getElementById("cv-ui");
+const stage=document.getElementById("stage");
+let imgData=null;
+function fitView(){
+  if(!S.hu)return;
+  const w=stage.clientWidth,h=stage.clientHeight;
+  S.zoom=Math.min(w/S.nx,h/S.ny)*0.98;
+  S.panx=(w-S.nx*S.zoom)/2; S.pany=(h-S.ny*S.zoom)/2;
+  redraw();
+}
+function setCanvasSizes(){ for(const cv of [cvImg,cvOv,cvUi]){cv.width=stage.clientWidth;cv.height=stage.clientHeight;} }
+function redraw(){
+  if(!S.hu)return;
+  setCanvasSizes();
+  const ctx=cvImg.getContext("2d"); ctx.imageSmoothingEnabled=false;
+  ctx.clearRect(0,0,cvImg.width,cvImg.height);
+  // monta imagem em um canvas offscreen do tamanho nx×ny
+  if(!imgData || imgData.width!==S.nx || imgData.height!==S.ny){
+    imgData = ctx.createImageData(S.nx,S.ny);
+  }
+  const wc=+document.getElementById("wc").value, ww=+document.getElementById("ww").value;
+  const lo=wc-ww/2, scl=255/ww; const base=S.slice*S.ny*S.nx, hu=S.hu, d=imgData.data;
+  for(let i=0;i<S.ny*S.nx;i++){ let v=(hu[base+i]-lo)*scl; v=v<0?0:v>255?255:v; const j=i*4; d[j]=d[j+1]=d[j+2]=v; d[j+3]=255; }
+  // overlay (candidatos + grupos)
+  const a=S.assign, cand=candidatos(S.slice).labels, am=candidatos(S.slice).areaMm, labels=cand;
+  for(let i=0;i<S.ny*S.nx;i++){
+    const g=a[base+i];
+    if(g){ const rgb=corRGB[g]; const j=i*4; d[j]=rgb[0];d[j+1]=rgb[1];d[j+2]=rgb[2];d[j+3]=255; }
+    else if(labels[i] && am[labels[i]]>=AREA_MINIMA_MM2){ const j=i*4; d[j]=255;d[j+1]=60;d[j+2]=240;d[j+3]=255; }
+  }
+  // desenha offscreen e escala
+  const off=document.createElement("canvas"); off.width=S.nx; off.height=S.ny;
+  off.getContext("2d").putImageData(imgData,0,0);
+  ctx.setTransform(S.zoom,0,0,S.zoom,S.panx,S.pany);
+  ctx.drawImage(off,0,0);
+  ctx.setTransform(1,0,0,1,0,0);
+  // limpa overlay/ui canvas (overlay já embutido na imagem)
+  cvOv.getContext("2d").clearRect(0,0,cvOv.width,cvOv.height);
+  const ui=cvUi.getContext("2d"); ui.clearRect(0,0,cvUi.width,cvUi.height);
+  if(lasso.active && lasso.pts.length>1){
+    ui.strokeStyle="#4da3ff"; ui.lineWidth=1.5; ui.beginPath();
+    const p0=img2scr(lasso.pts[0][0],lasso.pts[0][1]); ui.moveTo(p0.x,p0.y);
+    for(const [x,y] of lasso.pts){const s=img2scr(x,y);ui.lineTo(s.x,s.y);} ui.stroke();
+  }
+  document.getElementById("slicelbl").textContent=`corte ${S.slice+1}/${S.nz}  (z=${(S.slice*S.inc).toFixed(1)} mm)`;
+}
+function img2scr(x,y){ return {x:x*S.zoom+S.panx, y:y*S.zoom+S.pany}; }
+function scr2img(sx,sy){ return {x:(sx-S.panx)/S.zoom, y:(sy-S.pany)/S.zoom}; }
+
+function renderResultados(){
+  const sc=S._scores; if(!sc)return;
+  const tb=document.getElementById("tbody"); tb.innerHTML="";
+  for(const g of GRUPOS){
+    const r=sc.grupos[g.id]; const col=corRGB[GID[g.id]];
+    const tr=document.createElement("tr");
+    if(!g.coron) tr.style.color="var(--muted)";
+    tr.innerHTML=`<td><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:rgb(${col[0]},${col[1]},${col[2]});margin-right:6px"></span>${g.id}${g.coron?"":" *"}</td>
+      <td>${r.agatston}</td><td>${r.volume.toFixed(1)}</td><td>${r.lesoes}</td>`;
+    tb.appendChild(tr);
+  }
+  const trT=document.createElement("tr"); trT.className="total";
+  trT.innerHTML=`<td>CAC total (coron.)</td><td>${sc.cac_total}</td><td colspan="2"></td>`;
+  tb.appendChild(trT);
+  document.getElementById("cactotal").textContent=sc.cac_total;
+  const pill=document.getElementById("cacdrs"); pill.textContent=sc.cac_drs;
+  const cat=sc.cac_drs.includes("0")?0:("ABC".indexOf(sc.cac_drs.split(" ")[1][0])+1);
+  const cores=["#30363d","#2e7d32","#e3b341","#f85149"];
+  pill.style.background=cores[cat]; pill.style.color=cat===2?"#111":"#fff";
+}
+function renderPaciente(){
+  const p=S.paciente;
+  document.getElementById("paciente").innerHTML =
+    `${p.nome||"—"}<br>${p.sexo||"?"} · nasc ${p.nasc||"?"} · exame ${p.data||"?"}<br>${p.desc||""} ${p.kvp?("· "+p.kvp+" kVp"):""}`;
+}
+function copiarResumo(){
+  const sc=S._scores; if(!sc){return;}
+  let t=`ESCORE DE CÁLCIO (Agatston)\n`;
+  for(const g of GRUPOS){ const r=sc.grupos[g.id];
+    t+=`${g.id.padEnd(4)} ${String(r.agatston).padStart(6)}  vol ${r.volume.toFixed(1)} mm³  ${r.lesoes} lesão(ões)${g.coron?"":"  [fora da soma]"}\n`; }
+  t+=`\nCAC TOTAL (coronárias): ${sc.cac_total}   ${sc.cac_drs}\n`;
+  const m=document.getElementById("massa").value.trim(); if(m) t+=`Massa: ${m} mg\n`;
+  const ta=document.getElementById("resumo"); ta.value=t;
+  ta.select(); try{document.execCommand("copy");}catch(e){}
+  setStatus("Resumo copiado.");
+}
+
+/* ===================== Interação ===================== */
+function setStatus(s){ document.getElementById("status").textContent=s; }
+function sliceBy(d){ if(!S.hu)return; S.slice=Math.max(0,Math.min(S.nz-1,S.slice+d)); redraw(); }
+function zoomBy(f){ S.zoom*=f; redraw(); }
+function applyPreset(v){ const [c,w]=v.split(",").map(Number); document.getElementById("wc").value=c; document.getElementById("ww").value=w; redraw(); }
+function setTool(t){ S.tool=t; document.getElementById("t-click").classList.toggle("on",t==="click"); document.getElementById("t-lasso").classList.toggle("on",t==="lasso"); }
+function setGrupo(g){ S.grupoAtivo=g; buildGrupos(); }
+
+const lasso={active:false,pts:[]};
+let drag=null;
+stage.addEventListener("mousedown",e=>{
+  if(!S.hu)return;
+  const rect=stage.getBoundingClientRect(); const sx=e.clientX-rect.left, sy=e.clientY-rect.top;
+  if(e.button===2){ drag={mode:"wl",x:e.clientX,y:e.clientY,wc:+document.getElementById("wc").value,ww:+document.getElementById("ww").value}; e.preventDefault(); return; }
+  if(e.button===1){ drag={mode:"pan",x:e.clientX,y:e.clientY,px:S.panx,py:S.pany}; e.preventDefault(); return; }
+  if(e.button===0){
+    const im=scr2img(sx,sy);
+    if(S.tool==="lasso"){ lasso.active=true; lasso.pts=[[im.x,im.y]]; }
+    else { const x=Math.round(im.x-0.5),y=Math.round(im.y-0.5); if(x>=0&&y>=0&&x<S.nx&&y<S.ny) cliqueMarcar(y,x); }
+  }
+});
+window.addEventListener("mousemove",e=>{
+  if(!drag && !lasso.active)return;
+  const rect=stage.getBoundingClientRect(); const sx=e.clientX-rect.left, sy=e.clientY-rect.top;
+  if(drag&&drag.mode==="wl"){ const nx=drag.ww+(e.clientX-drag.x)*2; const nc=drag.wc-(e.clientY-drag.y)*2;
+    document.getElementById("ww").value=Math.max(1,Math.round(nx)); document.getElementById("wc").value=Math.round(nc); redraw(); }
+  else if(drag&&drag.mode==="pan"){ S.panx=drag.px+(e.clientX-drag.x); S.pany=drag.py+(e.clientY-drag.y); redraw(); }
+  else if(lasso.active){ const im=scr2img(sx,sy); lasso.pts.push([im.x,im.y]); redraw(); }
+});
+window.addEventListener("mouseup",e=>{
+  if(lasso.active){ lasso.active=false; if(lasso.pts.length>2) lassoMarcar(lasso.pts); lasso.pts=[]; redraw(); }
+  drag=null;
+});
+stage.addEventListener("contextmenu",e=>e.preventDefault());
+stage.addEventListener("wheel",e=>{
+  if(!S.hu)return; e.preventDefault();
+  if(e.ctrlKey){ zoomBy(e.deltaY<0?1.1:0.9); } else { sliceBy(e.deltaY<0?-1:1); }
+},{passive:false});
+window.addEventListener("keydown",e=>{
+  if(e.ctrlKey && (e.key==="z"||e.key==="Z")){ e.preventDefault(); undo(); return; }
+  if(e.key>="0"&&e.key<="6"){ setGrupo(+e.key===0?0:+e.key); }
+  if(e.key==="ArrowUp"){sliceBy(-1);e.preventDefault();}
+  if(e.key==="ArrowDown"){sliceBy(1);e.preventDefault();}
+  if(e.key==="l"||e.key==="L"){ setTool(S.tool==="click"?"lasso":"click"); }
+});
+document.getElementById("modo3d").addEventListener("change",e=>S.modo3d=e.target.checked);
+document.getElementById("file").addEventListener("change",e=>loadFiles(e.target.files));
+document.getElementById("file2").addEventListener("change",e=>loadFiles(e.target.files));
+const drop=document.getElementById("drop");
+["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("drag");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("drag");}));
+drop.addEventListener("drop",e=>{ const items=e.dataTransfer.files; if(items&&items.length) loadFiles(items); });
+window.addEventListener("resize",()=>{ if(S.hu) redraw(); });
+
+/* ===================== Painel de grupos ===================== */
+function buildGrupos(){
+  const box=document.getElementById("grupos"); box.innerHTML="";
+  const sc=S._scores;
+  for(const g of GRUPOS){
+    const b=document.createElement("button"); b.className="grp";
+    b.style.borderLeftColor=`var(${g.cor})`;
+    if(GID[g.id]===S.grupoAtivo) b.classList.add("on");
+    const sctxt = sc? sc.grupos[g.id].agatston : 0;
+    b.innerHTML=`<span class="dot" style="background:var(${g.cor})"></span><span class="nm">${g.id}${g.coron?"":" (indep.)"}</span><span class="sc">${sctxt}</span>`;
+    b.onclick=()=>setGrupo(GID[g.id]);
+    box.appendChild(b);
+  }
+  const er=document.createElement("button"); er.className="grp"; er.style.borderLeftColor="var(--line)";
+  if(S.grupoAtivo===0) er.classList.add("on");
+  er.innerHTML=`<span class="dot" style="background:#555"></span><span class="nm">Apagar (0)</span>`;
+  er.onclick=()=>setGrupo(0); box.appendChild(er);
+}
+function resolveCores(){
+  const cs=getComputedStyle(document.documentElement);
+  const hex=v=>{const s=cs.getPropertyValue(v).trim(); const m=s.replace("#",""); return [0,2,4].map(i=>parseInt(m.substr(i,2),16));};
+  GRUPOS.forEach(g=> corRGB[GID[g.id]]=hex(g.cor));
+}
+resolveCores(); buildGrupos();
+
+/* ===================== Hooks de teste (determinísticos) ===================== */
+window.CAC={
+  loadFiles,
+  get state(){return {nz:S.nz,ny:S.ny,nx:S.nx,pix:S.pix,inc:S.inc,areaPixel:S.areaPixel};},
+  scores:()=>S._scores,
+  assignByBBox(boxes){ // {GRUPO:[z0,z1,r0,r1,c0,c1]} — marca HU≥130 dentro do box
+    S.assign.fill(0); S.undoStack.length=0;
+    for(const id in boxes){ const g=GID[id]; const [z0,z1,r0,r1,c0,c1]=boxes[id];
+      for(let z=z0;z<z1;z++)for(let y=r0;y<r1;y++)for(let x=c0;x<c1;x++){ const vi=idx3(z,y,x); if(S.hu[vi]>=LIMIAR_HU) S.assign[vi]=g; } }
+    redraw(); return score();
+  }
+};
+setStatus("Pronto. Carregue uma série DICOM.");
+</script>
+</body>
+</html>
